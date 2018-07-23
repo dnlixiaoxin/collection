@@ -3,7 +3,7 @@ package com.utils.collection.model;
 import org.springframework.data.redis.core.RedisTemplate;
 
 public class RedisLock {
- 
+
     private RedisTemplate redisTemplate;
     /**
      * 重试时间
@@ -29,46 +29,50 @@ public class RedisLock {
      * 是否锁定标志
      */
     private volatile boolean locked = false;
- 
+
     /**
      * 构造器
+     *
      * @param redisTemplate
-     * @param lockKey 锁的key
+     * @param lockKey       锁的key
      */
     public RedisLock(RedisTemplate redisTemplate, String lockKey) {
         this.redisTemplate = redisTemplate;
         this.lockKey = lockKey + LOCK_SUFFIX;
     }
- 
+
     /**
      * 构造器
+     *
      * @param redisTemplate
-     * @param lockKey 锁的key
-     * @param timeoutMsecs 获取锁的超时时间
+     * @param lockKey       锁的key
+     * @param timeoutMsecs  获取锁的超时时间
      */
     public RedisLock(RedisTemplate redisTemplate, String lockKey, int timeoutMsecs) {
         this(redisTemplate, lockKey);
         this.timeoutMsecs = timeoutMsecs;
     }
- 
+
     /**
      * 构造器
+     *
      * @param redisTemplate
-     * @param lockKey 锁的key
-     * @param timeoutMsecs 获取锁的超时时间
-     * @param expireMsecs 锁的有效期
+     * @param lockKey       锁的key
+     * @param timeoutMsecs  获取锁的超时时间
+     * @param expireMsecs   锁的有效期
      */
     public RedisLock(RedisTemplate redisTemplate, String lockKey, int timeoutMsecs, int expireMsecs) {
         this(redisTemplate, lockKey, timeoutMsecs);
         this.expireMsecs = expireMsecs;
     }
- 
+
     public String getLockKey() {
         return lockKey;
     }
- 
+
     /**
      * 封装和jedis方法
+     *
      * @param key
      * @return
      */
@@ -76,30 +80,33 @@ public class RedisLock {
         Object obj = redisTemplate.opsForValue().get(key);
         return obj != null ? obj.toString() : null;
     }
- 
+
     /**
      * 封装和jedis方法
+     *
      * @param key
      * @param value
      * @return
      */
     private boolean setNX(final String key, final String value) {
-        return redisTemplate.opsForValue().setIfAbsent(key,value);
+        return redisTemplate.opsForValue().setIfAbsent(key, value);
     }
- 
+
     /**
      * 封装和jedis方法
+     *
      * @param key
      * @param value
      * @return
      */
     private String getSet(final String key, final String value) {
-        Object obj = redisTemplate.opsForValue().getAndSet(key,value);
+        Object obj = redisTemplate.opsForValue().getAndSet(key, value);
         return obj != null ? (String) obj : null;
     }
- 
+
     /**
      * 获取锁
+     *
      * @return 获取锁成功返回ture，超时返回false
      * @throws InterruptedException
      */
@@ -116,7 +123,7 @@ public class RedisLock {
             String currentValue = this.get(lockKey);
             //判断锁是否已经过期，过期则重新设置并获取
             if (currentValue != null && Long.parseLong(currentValue) < System.currentTimeMillis()) {
-            	//设置锁并返回旧值
+                //设置锁并返回旧值
                 String oldValue = this.getSet(lockKey, expiresStr);
                 //比较锁的时间，如果不一致则可能是其他锁已经修改了值并获取
                 if (oldValue != null && oldValue.equals(currentValue)) {
@@ -130,6 +137,7 @@ public class RedisLock {
         }
         return false;
     }
+
     /**
      * 释放获取到的锁
      */
@@ -139,5 +147,28 @@ public class RedisLock {
             locked = false;
         }
     }
- 
+
+
+    /**
+     * 使用示例
+     *
+     * @param args
+     */
+    public void main(String[] args) {
+
+        //使用方法，创建RedisLock对象
+        RedisLock lock = new RedisLock(redisTemplate, "lock_" + "product.getId()");
+        try {
+            if (lock.lock()) {
+                //执行目标方法
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+
+
+    }
+
 }
